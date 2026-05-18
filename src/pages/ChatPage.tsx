@@ -1,0 +1,146 @@
+import React, { useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Box } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { setActiveChat } from '../features/chats/chatsSlice';
+import { setSidebarOpen } from '../features/ui/uiSlice';
+import { signOut } from '../features/auth/authSlice';
+import { useChats } from '../hooks/useChats';
+import { useMessages } from '../hooks/useMessages';
+import { usePresence } from '../hooks/usePresence';
+import { selectActiveChat, selectSortedChats } from '../features/chats/chatsSelectors';
+import AppShell from '../components/layout/AppShell';
+import Sidebar from '../components/layout/Sidebar';
+import ChatHeader from '../components/layout/ChatHeader';
+import MessageList from '../components/chat/MessageList';
+import MessageComposer from '../components/chat/MessageComposer';
+import EmptyState from '../components/ui/EmptyState';
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
+import { useTheme, useMediaQuery } from '@mui/material';
+
+const ChatPage: React.FC = () => {
+  const dispatch    = useAppDispatch();
+  const navigate    = useNavigate();
+  const { chatId }  = useParams<{ chatId?: string }>();
+  const muiTheme    = useTheme();
+  const isMobile    = useMediaQuery(muiTheme.breakpoints.down('md'));
+
+  const user        = useAppSelector((s) => s.auth.user)!;
+  const activeChat  = useAppSelector(selectActiveChat);
+  const chats       = useAppSelector(selectSortedChats);
+  const chatsState  = useAppSelector((s) => s.chats);
+
+  useChats();
+
+  useEffect(() => {
+    if (chatId) {
+      dispatch(setActiveChat(chatId));
+    } else if (!isMobile && chats.length > 0 && !chatId) {
+      navigate(`/${chats[0].id}`, { replace: true });
+    }
+  }, [chatId, chats, dispatch, navigate, isMobile]);
+
+  const { messages, loading: msgLoading, error: msgError, sendMessage, setTyping } = useMessages(
+    activeChat?.id ?? null,
+  );
+
+  const allParticipants = chats.flatMap((c) => c.participants);
+  const uniqueParticipants = Array.from(new Set(allParticipants));
+  const { isOnline } = usePresence(uniqueParticipants);
+
+  const handleSelectChat = useCallback(
+    (id: string) => {
+      dispatch(setActiveChat(id));
+      navigate(`/${id}`);
+      if (isMobile) dispatch(setSidebarOpen(false));
+    },
+    [dispatch, navigate, isMobile],
+  );
+
+  const handleSignOut = useCallback(async () => {
+    await dispatch(signOut());
+    navigate('/login');
+  }, [dispatch, navigate]);
+
+  const typingUsers = activeChat
+    ? Object.entries(activeChat.typingUsers ?? {})
+        .filter(([uid, typing]) => typing && uid !== user.uid)
+        .map(([uid]) => activeChat.participantDetails[uid]?.displayName ?? uid)
+    : [];
+
+  const sidebar = (
+    <Sidebar
+      user={user}
+      chats={chats}
+      activeChatId={chatsState.activeChatId}
+      loading={chatsState.loading}
+      error={chatsState.error}
+      onlineUsers={Object.fromEntries(uniqueParticipants.map((uid) => [uid, isOnline(uid)]))}
+      onSelectChat={handleSelectChat}
+      onSignOut={handleSignOut}
+    />
+  );
+
+  const main = (
+    <Box className="flex flex-col h-full">
+      <AnimatePresence mode="wait">
+        {activeChat ? (
+          <motion.div
+            key={activeChat.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{    opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-col h-full"
+          >
+            <ChatHeader
+              chat={activeChat}
+              currentUid={user.uid}
+              isOnline={
+                activeChat.type === 'direct'
+                  ? isOnline(
+                      Object.values(activeChat.participantDetails).find((p) => p.uid !== user.uid)?.uid ?? '',
+                    )
+                  : false
+              }
+              onMenuClick={() => dispatch(setSidebarOpen(true))}
+              showMenuButton={isMobile}
+            />
+            <Box className="flex-1 flex flex-col overflow-hidden">
+              <MessageList
+                messages={messages}
+                currentUserId={user.uid}
+                loading={msgLoading}
+                error={msgError}
+                typingNames={typingUsers}
+              />
+              <MessageComposer
+                onSend={sendMessage}
+                onTyping={setTyping}
+                disabled={false}
+              />
+            </Box>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex items-center justify-center"
+          >
+            <EmptyState
+              icon={<ForumOutlinedIcon sx={{ fontSize: 56 }} />}
+              title="Select a conversation"
+              description="Choose from your existing conversations or start a new one."
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Box>
+  );
+
+  return <AppShell sidebar={sidebar} main={main} />;
+};
+
+export default ChatPage;
