@@ -20,6 +20,8 @@ import ChatHeader from '../components/layout/ChatHeader';
 import MessageList from '../components/chat/MessageList';
 import MessageComposer from '../components/chat/MessageComposer';
 import NewChatDialog from '../components/chat/NewChatDialog';
+import CreateGroupDialog from '../components/chat/CreateGroupDialog';
+import CreateChannelDialog from '../components/chat/CreateChannelDialog';
 import EmptyState from '../components/ui/EmptyState';
 
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
@@ -36,7 +38,9 @@ const ChatPage: React.FC = () => {
   const chats      = useAppSelector(selectSortedChats);
   const chatsState = useAppSelector((s) => s.chats);
 
-  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [newChatOpen, setNewChatOpen]       = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen]     = useState(false);
+  const [channelDialogOpen, setChannelDialogOpen] = useState(false);
 
   useChats();
 
@@ -52,7 +56,7 @@ const ChatPage: React.FC = () => {
     activeChat?.id ?? null,
   );
 
-const allParticipants    = chats.flatMap((c) => c.participants);
+  const allParticipants    = chats.flatMap((c) => c.participants);
   const uniqueParticipants = Array.from(new Set(allParticipants));
   const { isOnline }       = usePresence(uniqueParticipants);
 
@@ -77,17 +81,28 @@ const allParticipants    = chats.flatMap((c) => c.participants);
   const handleNewChatCreated = useCallback(
     (id: string) => {
       handleSelectChat(id);
-      toast.success('Conversation started!');
+      toast.success('Suhbat boshlandi!');
     },
     [handleSelectChat],
   );
 
-  const handleAttach = useCallback(
-    async (_file: File) => {
-      toast('File upload requires Firebase Storage (not enabled).', { icon: '📎' });
+  const handleGroupCreated = useCallback(
+    (id: string) => {
+      handleSelectChat(id);
     },
-    [],
+    [handleSelectChat],
   );
+
+  const handleChannelCreated = useCallback(
+    (id: string) => {
+      handleSelectChat(id);
+    },
+    [handleSelectChat],
+  );
+
+  const handleAttach = useCallback(async (_file: File) => {
+    toast('Fayl yuklash Firebase Storage talab qiladi (yoqilmagan).', { icon: '📎' });
+  }, []);
 
   const typingUsers = activeChat
     ? Object.entries(activeChat.typingUsers ?? {})
@@ -99,6 +114,11 @@ const allParticipants    = chats.flatMap((c) => c.participants);
     ? Object.values(activeChat.participantDetails).find((p) => p.uid !== user.uid)?.uid ?? ''
     : '';
 
+  const isChannelViewer =
+    activeChat?.type === 'channel' &&
+    activeChat.ownerId !== user.uid &&
+    !(activeChat.admins ?? []).includes(user.uid);
+
   const sidebar = (
     <Sidebar
       user={user}
@@ -109,6 +129,8 @@ const allParticipants    = chats.flatMap((c) => c.participants);
       onlineUsers={Object.fromEntries(uniqueParticipants.map((uid) => [uid, isOnline(uid)]))}
       onSelectChat={handleSelectChat}
       onNewChat={() => setNewChatOpen(true)}
+      onNewGroup={() => setGroupDialogOpen(true)}
+      onNewChannel={() => setChannelDialogOpen(true)}
       onSignOut={handleSignOut}
     />
   );
@@ -144,7 +166,8 @@ const allParticipants    = chats.flatMap((c) => c.participants);
                 onSend={sendMessage}
                 onTyping={setTyping}
                 onAttach={handleAttach}
-                disabled={false}
+                disabled={isChannelViewer}
+                placeholder={isChannelViewer ? 'Faqat adminlar yozishi mumkin' : 'Xabar yozing…'}
               />
             </Box>
           </motion.div>
@@ -157,9 +180,9 @@ const allParticipants    = chats.flatMap((c) => c.participants);
           >
             <EmptyState
               icon={<ForumOutlinedIcon sx={{ fontSize: 56, opacity: 0.3 }} />}
-              title="Select a conversation"
-              description="Choose from your existing conversations or start a new one."
-              action={{ label: 'New conversation', onClick: () => setNewChatOpen(true) }}
+              title="Suhbat tanlang"
+              description="Mavjud suhbatlardan birini tanlang yoki yangi suhbat boshlang."
+              action={{ label: 'Yangi suhbat', onClick: () => setNewChatOpen(true) }}
             />
           </motion.div>
         )}
@@ -174,6 +197,16 @@ const allParticipants    = chats.flatMap((c) => c.participants);
         open={newChatOpen}
         onClose={() => setNewChatOpen(false)}
         onChatCreated={handleNewChatCreated}
+      />
+      <CreateGroupDialog
+        open={groupDialogOpen}
+        onClose={() => setGroupDialogOpen(false)}
+        onGroupCreated={handleGroupCreated}
+      />
+      <CreateChannelDialog
+        open={channelDialogOpen}
+        onClose={() => setChannelDialogOpen(false)}
+        onChannelCreated={handleChannelCreated}
       />
     </>
   );

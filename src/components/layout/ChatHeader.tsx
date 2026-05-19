@@ -1,19 +1,21 @@
 import React from 'react';
-import { IconButton, Typography, Tooltip, Box } from '@mui/material';
+import { IconButton, Typography, Tooltip, Box, Avatar, Chip } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined';
 import CallOutlinedIcon from '@mui/icons-material/CallOutlined';
+import GroupIcon from '@mui/icons-material/Group';
+import CampaignIcon from '@mui/icons-material/Campaign';
 import AvatarWithStatus from '../common/AvatarWithStatus';
 import StatusBadge from '../common/StatusBadge';
 import { Chat } from '../../types';
 
 interface Props {
-  chat:             Chat;
-  currentUid:       string;
-  isOnline:         boolean;
-  onMenuClick:      () => void;
-  showMenuButton:   boolean;
+  chat:           Chat;
+  currentUid:     string;
+  isOnline:       boolean;
+  onMenuClick:    () => void;
+  showMenuButton: boolean;
 }
 
 const ChatHeader: React.FC<Props> = ({
@@ -23,10 +25,14 @@ const ChatHeader: React.FC<Props> = ({
   onMenuClick,
   showMenuButton,
 }) => {
-  const other = Object.values(chat.participantDetails).find((p) => p.uid !== currentUid);
-  const displayName  = chat.type === 'direct' ? (other?.displayName ?? chat.name) : chat.name;
-  const displayPhoto = chat.type === 'direct' ? (other?.photoURL ?? null) : chat.photoURL;
-  const displayUid   = chat.type === 'direct' ? (other?.uid ?? chat.id) : chat.id;
+  const isDirect  = chat.type === 'direct';
+  const isChannel = chat.type === 'channel';
+
+  const other       = isDirect ? Object.values(chat.participantDetails).find((p) => p.uid !== currentUid) : null;
+  const displayName = isDirect ? (other?.displayName ?? chat.name) : chat.name;
+  const displayUid  = isDirect ? (other?.uid ?? chat.id) : chat.id;
+
+  const memberCount = chat.memberCount ?? chat.participants.length;
 
   return (
     <Box
@@ -45,33 +51,61 @@ const ChatHeader: React.FC<Props> = ({
         </IconButton>
       )}
 
-      <AvatarWithStatus
-        uid={displayUid}
-        displayName={displayName}
-        photoURL={displayPhoto}
-        isOnline={isOnline}
-        size={40}
-      />
+      {isDirect ? (
+        <AvatarWithStatus
+          uid={displayUid}
+          displayName={displayName}
+          photoURL={other?.photoURL ?? null}
+          isOnline={isOnline}
+          size={40}
+        />
+      ) : (
+        <Avatar
+          sx={{
+            width: 40,
+            height: 40,
+            bgcolor: isChannel ? 'secondary.main' : 'primary.main',
+            flexShrink: 0,
+          }}
+        >
+          {isChannel ? <CampaignIcon sx={{ fontSize: 20 }} /> : <GroupIcon sx={{ fontSize: 20 }} />}
+        </Avatar>
+      )}
 
       <div className="flex-1 min-w-0">
-        <Typography variant="subtitle1" noWrap sx={{ lineHeight: 1.2, fontWeight: 600 }}>
-          {displayName}
-        </Typography>
-        <StatusBadge isOnline={isOnline} size="small" />
+        <div className="flex items-center gap-2">
+          <Typography variant="subtitle1" noWrap sx={{ lineHeight: 1.2, fontWeight: 600 }}>
+            {displayName}
+          </Typography>
+          {isChannel && chat.isPublic && (
+            <Chip label="Ochiq" size="small" sx={{ height: 18, fontSize: '0.65rem', borderRadius: '6px' }} />
+          )}
+        </div>
+        {isDirect ? (
+          <StatusBadge isOnline={isOnline} size="small" />
+        ) : (
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
+            {memberCount} {isChannel ? 'obunachilar' : 'a\'zo'}
+          </Typography>
+        )}
       </div>
 
       <div className="flex items-center gap-0.5">
-        <Tooltip title="Voice call (coming soon)">
-          <IconButton size="small" sx={{ color: 'text.secondary' }}>
-            <CallOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Video call (coming soon)">
-          <IconButton size="small" sx={{ color: 'text.secondary' }}>
-            <VideocamOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="More options">
+        {isDirect && (
+          <>
+            <Tooltip title="Ovozli qo'ng'iroq (tez kunda)">
+              <IconButton size="small" sx={{ color: 'text.secondary' }}>
+                <CallOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Video qo'ng'iroq (tez kunda)">
+              <IconButton size="small" sx={{ color: 'text.secondary' }}>
+                <VideocamOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
+        <Tooltip title="Ko'proq">
           <IconButton size="small" sx={{ color: 'text.secondary' }}>
             <MoreVertIcon fontSize="small" />
           </IconButton>

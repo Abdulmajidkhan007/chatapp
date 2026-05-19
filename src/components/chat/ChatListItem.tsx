@@ -1,35 +1,60 @@
 import React, { memo } from 'react';
-import { Typography, Box } from '@mui/material';
+import { Typography, Box, Avatar } from '@mui/material';
 import { motion } from 'framer-motion';
+import GroupIcon from '@mui/icons-material/Group';
+import CampaignIcon from '@mui/icons-material/Campaign';
 import AvatarWithStatus from '../common/AvatarWithStatus';
 import { Chat } from '../../types';
 import { formatChatTime, truncate } from '../../utils/formatters';
 
 interface Props {
-  chat:        Chat;
-  isActive:    boolean;
-  currentUid:  string;
-  isOnline:    boolean;
-  onClick:     () => void;
+  chat:       Chat;
+  isActive:   boolean;
+  currentUid: string;
+  isOnline:   boolean;
+  onClick:    () => void;
 }
 
 const ChatListItem: React.FC<Props> = memo(({ chat, isActive, currentUid, isOnline, onClick }) => {
-  const otherParticipant = Object.values(chat.participantDetails).find(
-    (p) => p.uid !== currentUid,
-  );
-  const displayName  = chat.type === 'direct' ? (otherParticipant?.displayName ?? chat.name) : chat.name;
-  const displayPhoto = chat.type === 'direct' ? (otherParticipant?.photoURL ?? null) : chat.photoURL;
-  const displayUid   = chat.type === 'direct' ? (otherParticipant?.uid ?? chat.id) : chat.id;
+  const isGroup   = chat.type === 'group';
+  const isChannel = chat.type === 'channel';
+  const isDirect  = chat.type === 'direct';
+
+  const otherParticipant = isDirect
+    ? Object.values(chat.participantDetails).find((p) => p.uid !== currentUid)
+    : null;
+
+  const displayName = isDirect ? (otherParticipant?.displayName ?? chat.name) : chat.name;
+  const displayUid  = isDirect ? (otherParticipant?.uid ?? chat.id) : chat.id;
 
   const lastMsg   = chat.lastMessage;
   const timeLabel = lastMsg ? formatChatTime(lastMsg.createdAt) : '';
   const preview   = lastMsg
-    ? (lastMsg.senderId === currentUid ? `You: ${lastMsg.content}` : lastMsg.content)
-    : 'No messages yet';
+    ? lastMsg.senderId === currentUid
+      ? `Siz: ${lastMsg.content}`
+      : lastMsg.content
+    : 'Xabarlar yo\'q';
 
   const typingUserIds = Object.entries(chat.typingUsers ?? {})
     .filter(([uid, isTyping]) => isTyping && uid !== currentUid)
     .map(([uid]) => uid);
+
+  const groupAvatar = (
+    <Avatar
+      sx={{
+        width: 44,
+        height: 44,
+        bgcolor: isChannel ? 'secondary.main' : 'primary.main',
+        flexShrink: 0,
+      }}
+    >
+      {isChannel ? <CampaignIcon sx={{ fontSize: 22 }} /> : <GroupIcon sx={{ fontSize: 22 }} />}
+    </Avatar>
+  );
+
+  const memberLabel = isGroup || isChannel
+    ? `${chat.memberCount ?? chat.participants.length} a'zo`
+    : null;
 
   return (
     <motion.button
@@ -46,13 +71,15 @@ const ChatListItem: React.FC<Props> = memo(({ chat, isActive, currentUid, isOnli
       style={{ outline: 'none', border: 'none', background: isActive ? undefined : 'transparent', cursor: 'pointer' }}
       aria-selected={isActive}
     >
-      <AvatarWithStatus
-        uid={displayUid}
-        displayName={displayName}
-        photoURL={displayPhoto}
-        isOnline={isOnline}
-        size={44}
-      />
+      {isDirect ? (
+        <AvatarWithStatus
+          uid={displayUid}
+          displayName={displayName}
+          photoURL={otherParticipant?.photoURL ?? null}
+          isOnline={isOnline}
+          size={44}
+        />
+      ) : groupAvatar}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
@@ -73,13 +100,17 @@ const ChatListItem: React.FC<Props> = memo(({ chat, isActive, currentUid, isOnli
             variant="caption"
             noWrap
             sx={{
-              color:      typingUserIds.length > 0 ? 'primary.main' : 'text.secondary',
-              fontStyle:  typingUserIds.length > 0 ? 'italic' : 'normal',
+              color:     typingUserIds.length > 0 ? 'primary.main' : 'text.secondary',
+              fontStyle: typingUserIds.length > 0 ? 'italic' : 'normal',
               fontWeight: chat.unreadCount > 0 ? 600 : 400,
-              fontSize:   '0.78rem',
+              fontSize:  '0.78rem',
             }}
           >
-            {typingUserIds.length > 0 ? 'typing…' : truncate(preview, 40)}
+            {typingUserIds.length > 0
+              ? 'yozmoqda…'
+              : memberLabel && !lastMsg
+              ? memberLabel
+              : truncate(preview, 40)}
           </Typography>
 
           {chat.unreadCount > 0 && (
@@ -89,12 +120,12 @@ const ChatListItem: React.FC<Props> = memo(({ chat, isActive, currentUid, isOnli
                 display:    'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                bgcolor:   'primary.main',
-                color:     'white',
+                bgcolor:    'primary.main',
+                color:      'white',
                 borderRadius: '50%',
-                minWidth:  18,
-                height:    18,
-                fontSize:  '0.65rem',
+                minWidth:   18,
+                height:     18,
+                fontSize:   '0.65rem',
                 fontWeight: 700,
                 px: 0.5,
                 flexShrink: 0,

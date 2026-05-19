@@ -1,4 +1,3 @@
-// src/services/chatService.ts
 import {
   collection,
   query,
@@ -11,68 +10,53 @@ import {
   serverTimestamp,
   Unsubscribe,
   getDocs,
+  arrayUnion,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Chat } from '../types';
+import { Chat, AppUser, ChatParticipant } from '../types';
 
 export const subscribeToChats = (
-  userId: string,
+  userId:   string,
   callback: (chats: Chat[]) => void,
-  onError: (error: Error) => void,
+  onError:  (error: Error) => void,
 ): Unsubscribe => {
   const q = query(
     collection(db, 'chats'),
     where('participants', 'array-contains', userId),
     orderBy('updatedAt', 'desc'),
   );
-
   return onSnapshot(
     q,
-    (snapshot) => {
-      const chats: Chat[] = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Chat));
-      callback(chats);
-    },
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Chat))),
     onError,
   );
 };
 
+const toParticipant = (u: Pick<AppUser, 'uid' | 'displayName' | 'photoURL'>): ChatParticipant => ({
+  uid:         u.uid,
+  displayName: u.displayName,
+  photoURL:    u.photoURL,
+  isOnline:    false,
+  lastSeen:    Date.now(),
+});
+
 export const createDirectChat = async (
-  currentUser: { uid: string; displayName: string; photoURL: string | null },
-  otherUser:   { uid: string; displayName: string; photoURL: string | null },
+  currentUser: Pick<AppUser, 'uid' | 'displayName' | 'photoURL'>,
+  otherUser:   Pick<AppUser, 'uid' | 'displayName' | 'photoURL'>,
 ): Promise<string> => {
-  // Check if direct chat already exists
-  const q = query(
-    collection(db, 'chats'),
-    where('type', '==', 'direct'),
-    where('participants', 'array-contains', currentUser.uid),
-  );
+  const q    = query(collection(db, 'chats'), where('type', '==', 'direct'), where('participants', 'array-contains', currentUser.uid));
   const snap = await getDocs(q);
-  const existing = snap.docs.find((d) => {
-    const data = d.data() as Chat;
-    return data.participants.includes(otherUser.uid);
-  });
+  const existing = snap.docs.find((d) => (d.data() as Chat).participants.includes(otherUser.uid));
   if (existing) return existing.id;
 
-  const chatData: Omit<Chat, 'id'> = {
+  const data: Omit<Chat, 'id'> = {
     name:    otherUser.displayName,
     type:    'direct',
     photoURL: otherUser.photoURL,
     participants: [currentUser.uid, otherUser.uid],
     participantDetails: {
-      [currentUser.uid]: {
-        uid:         currentUser.uid,
-        displayName: currentUser.displayName,
-        photoURL:    currentUser.photoURL,
-        isOnline:    true,
-        lastSeen:    Date.now(),
-      },
-      [otherUser.uid]: {
-        uid:         otherUser.uid,
-        displayName: otherUser.displayName,
-        photoURL:    otherUser.photoURL,
-        isOnline:    false,
-        lastSeen:    Date.now(),
-      },
+      [currentUser.uid]: toParticipant(currentUser),
+      [otherUser.uid]:   toParticipant(otherUser),
     },
     lastMessage:  null,
     unreadCount:  0,
@@ -80,25 +64,89 @@ export const createDirectChat = async (
     updatedAt:    Date.now(),
     typingUsers:  {},
   };
-
-  const ref = await addDoc(collection(db, 'chats'), {
-    ...chatData,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const ref = await addDoc(collection(db, 'chats'), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   return ref.id;
 };
 
-export const setTypingStatus = async (
+export const createGroupChat = async (
+  creator:     Pick<AppUser, 'uid' | 'displayName' | 'photoURL'>,
+  members:     Pick<AppUser, 'uid' | 'displayName' | 'photoURL'>[],
+  groupName:   string,
+  description?: string,
+): Promise<string> => {
+  const all          = [creator, ...members];
+  const participantIds = all.map((u) => u.uid);
+  const details: Record<string, ChatParticipant> = {};
+  all.forEach((u) => {
+    details[u.uid] = { ...toParticipant(u), role: u.uid === creator.uid ? 'owner' : 'member' };
+  });
+
+  const data: Omit<Chat, 'id'> = {
+    name:    groupName,
+    type:    'group',
+    photoURL: null,
+    description: description ?? '',
+    participants: participantIds,
+    admins:  [creator.uid],
+    ownerId: creator.uid,
+    participantDetails: details,
+    lastMessage:   null,
+    unreadCount:   0,
+    memberCount:   all.length,
+    createdAt:     Date.now(),
+    updatedAt:     Date.now(),
+    typingUsers:   {},
+  };
+  const ref = await addDoc(collection(db, 'chats'), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  return ref.id;
+};
+
+export const createChannel = async (
+  owner:       Pick<AppUser, 'uid' | 'displayName' | 'photoURL'>,
+  channelName: string,
+  description?: string,
+  isPublic = true,
+): Promise<string> => {
+  const data: Omit<Chat, 'id'> = {
+    name:    channelName,
+    type:    'channel',
+    photoURL: null,
+    description: description ?? '',
+    isPublic,
+    participants: [owner.uid],
+    admins:  [owner.uid],
+    ownerId: owner.uid,
+    participantDetails: {
+      [owner.uid]: { ...toParticipant(owner), role: 'owner' },
+    },
+    lastMessage:  null,
+    unreadCount:  0,
+    memberCount:  1,
+    createdAt:    Date.now(),
+    updatedAt:    Date.now(),
+    typingUsers:  {},
+  };
+  const ref = await addDoc(collection(db, 'chats'), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  return ref.id;
+};
+
+export const joinChannel = async (
   chatId: string,
-  userId: string,
+  user:   Pick<AppUser, 'uid' | 'displayName' | 'photoURL'>,
+): Promise<void> => {
+  await updateDoc(doc(db, 'chats', chatId), {
+    participants: arrayUnion(user.uid),
+    [`participantDetails.${user.uid}`]: toParticipant(user),
+    memberCount: (await getDocs(query(collection(db, 'chats'), where('__name__', '==', chatId)))).docs[0]?.data()?.memberCount + 1 || 1,
+  });
+};
+
+export const setTypingStatus = async (
+  chatId:   string,
+  userId:   string,
   isTyping: boolean,
 ): Promise<void> => {
   try {
-    await updateDoc(doc(db, 'chats', chatId), {
-      [`typingUsers.${userId}`]: isTyping,
-    });
-  } catch {
-    // silently ignore typing errors
-  }
+    await updateDoc(doc(db, 'chats', chatId), { [`typingUsers.${userId}`]: isTyping });
+  } catch {}
 };

@@ -1,7 +1,13 @@
-import React from 'react';
-import { Box, Divider, IconButton, Tooltip, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import {
+  Box, Divider, IconButton, Tooltip, Typography,
+  Menu, MenuItem, ListItemIcon, ListItemText,
+} from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
+import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
+import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import { AnimatePresence, motion } from 'framer-motion';
 import ChatList from '../chat/ChatList';
 import ThemeToggle from '../common/ThemeToggle';
@@ -10,16 +16,18 @@ import { useAppSelector } from '../../app/hooks';
 import { Chat, AppUser } from '../../types';
 
 interface Props {
-  user:          AppUser;
-  chats:         Chat[];
-  activeChatId:  string | null;
-  loading:       boolean;
-  error:         string | null;
-  onlineUsers:   Record<string, boolean>;
-  onSelectChat:  (chatId: string) => void;
-  onNewChat?:    () => void;
-  onSignOut:     () => void;
-  onRetryChats?: () => void;
+  user:           AppUser;
+  chats:          Chat[];
+  activeChatId:   string | null;
+  loading:        boolean;
+  error:          string | null;
+  onlineUsers:    Record<string, boolean>;
+  onSelectChat:   (chatId: string) => void;
+  onNewChat?:     () => void;
+  onNewGroup?:    () => void;
+  onNewChannel?:  () => void;
+  onSignOut:      () => void;
+  onRetryChats?:  () => void;
 }
 
 const Sidebar: React.FC<Props> = ({
@@ -31,10 +39,20 @@ const Sidebar: React.FC<Props> = ({
   onlineUsers,
   onSelectChat,
   onNewChat,
+  onNewGroup,
+  onNewChannel,
   onSignOut,
   onRetryChats,
 }) => {
   const activePanel = useAppSelector((s) => s.ui.activePanel);
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+
+  const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) => setMenuAnchor(e.currentTarget);
+  const handleMenuClose = () => setMenuAnchor(null);
+
+  const handleNewChat = () => { handleMenuClose(); onNewChat?.(); };
+  const handleNewGroup = () => { handleMenuClose(); onNewGroup?.(); };
+  const handleNewChannel = () => { handleMenuClose(); onNewChannel?.(); };
 
   return (
     <Box
@@ -73,14 +91,12 @@ const Sidebar: React.FC<Props> = ({
               </Typography>
               <div className="flex items-center gap-1">
                 <ThemeToggle />
-                {onNewChat && (
-                  <Tooltip title="New conversation">
-                    <IconButton size="small" onClick={onNewChat} aria-label="New conversation">
-                      <EditOutlinedIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Tooltip title="Sign out">
+                <Tooltip title="Yangi suhbat">
+                  <IconButton size="small" onClick={handleMenuOpen} aria-label="Yangi suhbat">
+                    <EditOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Chiqish">
                   <IconButton
                     size="small"
                     onClick={onSignOut}
@@ -92,6 +108,28 @@ const Sidebar: React.FC<Props> = ({
                 </Tooltip>
               </div>
             </Box>
+
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={handleMenuClose}
+              slotProps={{ paper: { sx: { borderRadius: '12px', minWidth: 180 } } }}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            >
+              <MenuItem onClick={handleNewChat} sx={{ borderRadius: '8px', mx: 0.5 }}>
+                <ListItemIcon><ChatBubbleOutlineOutlinedIcon fontSize="small" /></ListItemIcon>
+                <ListItemText primary="Yangi suhbat" />
+              </MenuItem>
+              <MenuItem onClick={handleNewGroup} sx={{ borderRadius: '8px', mx: 0.5 }}>
+                <ListItemIcon><GroupAddOutlinedIcon fontSize="small" /></ListItemIcon>
+                <ListItemText primary="Yangi guruh" />
+              </MenuItem>
+              <MenuItem onClick={handleNewChannel} sx={{ borderRadius: '8px', mx: 0.5 }}>
+                <ListItemIcon><CampaignOutlinedIcon fontSize="small" /></ListItemIcon>
+                <ListItemText primary="Yangi kanal" />
+              </MenuItem>
+            </Menu>
 
             <Divider />
 

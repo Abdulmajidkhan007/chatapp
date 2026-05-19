@@ -35,6 +35,17 @@ export const signUp = createAsyncThunk(
   },
 );
 
+export const signInWithGoogle = createAsyncThunk(
+  'auth/signInWithGoogle',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await authService.signInWithGoogle();
+    } catch (err) {
+      return rejectWithValue((err as Error).message);
+    }
+  },
+);
+
 export const signOut = createAsyncThunk('auth/signOut', async (_, { rejectWithValue }) => {
   try {
     await authService.signOut();
@@ -79,6 +90,16 @@ const authSlice = createSlice({
         state.error   = null;
       })
       .addCase(signUp.rejected,  (state, action) => {
+        state.loading = false;
+        state.error   = action.payload as string;
+      })
+      .addCase(signInWithGoogle.pending,   (state) => { state.loading = true;  state.error = null; })
+      .addCase(signInWithGoogle.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user    = action.payload;
+        state.error   = null;
+      })
+      .addCase(signInWithGoogle.rejected,  (state, action) => {
         state.loading = false;
         state.error   = action.payload as string;
       })
