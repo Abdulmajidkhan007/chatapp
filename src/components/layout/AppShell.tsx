@@ -1,40 +1,40 @@
 import React from 'react';
 import { Box, Drawer, useMediaQuery, useTheme } from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { setSidebarOpen } from '../../features/ui/uiSlice';
+import SidebarNav from './SidebarNav';
 
-const SIDEBAR_WIDTH = 320;
+const SIDEBAR_WIDTH     = 300;
+const NAV_WIDTH         = 64;
+const TOTAL_SIDEBAR_W   = SIDEBAR_WIDTH + NAV_WIDTH;
 
 interface Props {
-  sidebar:  React.ReactNode;
-  main:     React.ReactNode;
+  sidebar: React.ReactNode;
+  main:    React.ReactNode;
 }
 
 const AppShell: React.FC<Props> = ({ sidebar, main }) => {
-  const dispatch      = useAppDispatch();
-  const sidebarOpen   = useAppSelector((s) => s.ui.sidebarOpen);
-  const theme         = useTheme();
-  const isMobile      = useMediaQuery(theme.breakpoints.down('md'));
+  const dispatch    = useAppDispatch();
+  const sidebarOpen = useAppSelector((s) => s.ui.sidebarOpen);
+  const muiTheme    = useTheme();
+  const isMobile    = useMediaQuery(muiTheme.breakpoints.down('md'));
 
   const handleClose = () => dispatch(setSidebarOpen(false));
 
   return (
-    <Box
-      className="flex h-screen w-full overflow-hidden"
-      sx={{ bgcolor: 'background.default' }}
-    >
-      {/* Desktop persistent sidebar */}
+    <Box className="flex h-screen w-full overflow-hidden" sx={{ bgcolor: 'background.default' }}>
+      {/* Desktop: icon nav + panel */}
       {!isMobile && (
-        <motion.div
-          initial={false}
-          style={{ width: SIDEBAR_WIDTH, flexShrink: 0, height: '100%' }}
-        >
-          {sidebar}
-        </motion.div>
+        <Box sx={{ width: TOTAL_SIDEBAR_W, flexShrink: 0, display: 'flex', height: '100%' }}>
+          <SidebarNav />
+          <Box sx={{ width: SIDEBAR_WIDTH, flexShrink: 0, height: '100%' }}>
+            {sidebar}
+          </Box>
+        </Box>
       )}
 
-      {/* Mobile drawer */}
+      {/* Mobile: full-width drawer */}
       {isMobile && (
         <Drawer
           open={sidebarOpen}
@@ -44,9 +44,11 @@ const AppShell: React.FC<Props> = ({ sidebar, main }) => {
             backdrop: {},
             paper: {
               sx: {
-                width:    SIDEBAR_WIDTH,
-                maxWidth: '85vw',
-                borderRight: 'none',
+                width:    TOTAL_SIDEBAR_W,
+                maxWidth: '92vw',
+                display:  'flex',
+                flexDirection: 'row',
+                overflow: 'hidden',
               },
             },
           }}
@@ -54,13 +56,16 @@ const AppShell: React.FC<Props> = ({ sidebar, main }) => {
           <AnimatePresence>
             {sidebarOpen && (
               <motion.div
-                initial={{ x: -SIDEBAR_WIDTH }}
+                initial={{ x: -(TOTAL_SIDEBAR_W) }}
                 animate={{ x: 0 }}
-                exit={{    x: -SIDEBAR_WIDTH }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                style={{ height: '100%' }}
+                exit={{    x: -(TOTAL_SIDEBAR_W) }}
+                transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+                style={{ display: 'flex', width: '100%', height: '100%' }}
               >
-                {sidebar}
+                <SidebarNav />
+                <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                  {sidebar}
+                </Box>
               </motion.div>
             )}
           </AnimatePresence>

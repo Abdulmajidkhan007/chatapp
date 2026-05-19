@@ -8,11 +8,16 @@ export const usePresence = (userIds: string[]) => {
   const dispatch    = useAppDispatch();
   const onlineUsers = useAppSelector((s) => s.presence.onlineUsers);
 
+  // Stable key from joined IDs — intentional dep expression
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const idsKey = userIds.join(',');
+
   useEffect(() => {
     if (userIds.length === 0) return;
     const unsub = subscribeToPresence(userIds, (map) => dispatch(setPresence(map)));
     return unsub;
-  }, [userIds.join(','), dispatch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey, dispatch]);
 
   const isOnline = (uid: string) => onlineUsers[uid] ?? false;
 

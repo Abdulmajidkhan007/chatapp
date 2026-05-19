@@ -24,6 +24,7 @@ export const useChats = () => {
     return () => {
       unsubRef.current?.();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, dispatch]);
 
   return chats;

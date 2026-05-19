@@ -8,6 +8,7 @@ import AppRouter from './router';
 import { lightTheme, darkTheme } from '../styles/muiTheme';
 import { useAppSelector } from './hooks';
 import { useAuth } from '../hooks/useAuth';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import '../styles/global.css';
 
 const ThemedApp: React.FC = () => {
@@ -45,9 +46,11 @@ const ThemedApp: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <Provider store={store}>
-    <ThemedApp />
-  </Provider>
+  <ErrorBoundary>
+    <Provider store={store}>
+      <ThemedApp />
+    </Provider>
+  </ErrorBoundary>
 );
 
 export default App;
