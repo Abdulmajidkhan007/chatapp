@@ -45,12 +45,28 @@ const ThemedApp: React.FC = () => {
   );
 };
 
-const App: React.FC = () => (
-  <ErrorBoundary>
-    <Provider store={store}>
-      <ThemedApp />
-    </Provider>
-  </ErrorBoundary>
-);
+const isMissingConfig = !process.env.REACT_APP_FIREBASE_API_KEY;
+
+const App: React.FC = () => {
+  if (isMissingConfig) {
+    return (
+      <div style={{ fontFamily: 'Inter, sans-serif', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, padding: 24, textAlign: 'center', background: '#0f1117', color: '#e2e8f0' }}>
+        <div style={{ fontSize: 40 }}>⚙️</div>
+        <h2 style={{ margin: 0, fontSize: 20 }}>Firebase config topilmadi</h2>
+        <p style={{ margin: 0, color: '#94a3b8', fontSize: 14, maxWidth: 380 }}>
+          Netlify → Site settings → Environment variables bo'limiga <strong>REACT_APP_FIREBASE_*</strong> o'zgaruvchilarini kiriting, so'ng <strong>Trigger deploy</strong> ni bosing.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <Provider store={store}>
+        <ThemedApp />
+      </Provider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;

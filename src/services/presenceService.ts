@@ -11,6 +11,8 @@ import {
 import { rtdb } from './firebase';
 
 export const initPresence = (userId: string): (() => void) => {
+  if (!rtdb) return () => {};
+
   const userStatusRef = ref(rtdb, `/presence/${userId}`);
   const connectedRef  = ref(rtdb, '.info/connected');
 
@@ -29,11 +31,16 @@ export const subscribeToPresence = (
   userIds: string[],
   callback: (presenceMap: Record<string, boolean>) => void,
 ): (() => void) => {
+  if (!rtdb) {
+    callback({});
+    return () => {};
+  }
+
   const listeners: Array<() => void> = [];
   const presenceMap: Record<string, boolean> = {};
 
   userIds.forEach((uid) => {
-    const userRef = ref(rtdb, `/presence/${uid}`);
+    const userRef = ref(rtdb!, `/presence/${uid}`);
     const handler = (snap: DataSnapshot) => {
       presenceMap[uid] = snap.val()?.isOnline ?? false;
       callback({ ...presenceMap });
