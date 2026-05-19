@@ -12,7 +12,6 @@ import { signOut } from '../features/auth/authSlice';
 import { useChats } from '../hooks/useChats';
 import { useMessages } from '../hooks/useMessages';
 import { usePresence } from '../hooks/usePresence';
-import { useFileUpload } from '../hooks/useFileUpload';
 import { selectActiveChat, selectSortedChats } from '../features/chats/chatsSelectors';
 
 import AppShell from '../components/layout/AppShell';
@@ -53,9 +52,7 @@ const ChatPage: React.FC = () => {
     activeChat?.id ?? null,
   );
 
-  const { uploads, startUpload, clearUpload } = useFileUpload();
-
-  const allParticipants    = chats.flatMap((c) => c.participants);
+const allParticipants    = chats.flatMap((c) => c.participants);
   const uniqueParticipants = Array.from(new Set(allParticipants));
   const { isOnline }       = usePresence(uniqueParticipants);
 
@@ -86,14 +83,10 @@ const ChatPage: React.FC = () => {
   );
 
   const handleAttach = useCallback(
-    async (file: File) => {
-      if (!activeChat) return;
-      const attachment = await startUpload(activeChat.id, file);
-      if (attachment) {
-        await sendMessage(attachment.name, 'file');
-      }
+    async (_file: File) => {
+      toast('File upload requires Firebase Storage (not enabled).', { icon: '📎' });
     },
-    [activeChat, startUpload, sendMessage],
+    [],
   );
 
   const typingUsers = activeChat
@@ -151,8 +144,6 @@ const ChatPage: React.FC = () => {
                 onSend={sendMessage}
                 onTyping={setTyping}
                 onAttach={handleAttach}
-                uploads={uploads}
-                onRemoveUpload={clearUpload}
                 disabled={false}
               />
             </Box>
