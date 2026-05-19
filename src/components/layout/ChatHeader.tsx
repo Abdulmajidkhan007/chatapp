@@ -6,16 +6,18 @@ import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined';
 import CallOutlinedIcon from '@mui/icons-material/CallOutlined';
 import GroupIcon from '@mui/icons-material/Group';
 import CampaignIcon from '@mui/icons-material/Campaign';
+import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import AvatarWithStatus from '../common/AvatarWithStatus';
 import StatusBadge from '../common/StatusBadge';
 import { Chat } from '../../types';
 
 interface Props {
-  chat:           Chat;
-  currentUid:     string;
-  isOnline:       boolean;
-  onMenuClick:    () => void;
-  showMenuButton: boolean;
+  chat:            Chat;
+  currentUid:      string;
+  isOnline:        boolean;
+  onMenuClick:     () => void;
+  showMenuButton:  boolean;
+  onAddMember?:    () => void;
 }
 
 const ChatHeader: React.FC<Props> = ({
@@ -24,6 +26,7 @@ const ChatHeader: React.FC<Props> = ({
   isOnline,
   onMenuClick,
   showMenuButton,
+  onAddMember,
 }) => {
   const isDirect  = chat.type === 'direct';
   const isChannel = chat.type === 'channel';
@@ -33,6 +36,9 @@ const ChatHeader: React.FC<Props> = ({
   const displayUid  = isDirect ? (other?.uid ?? chat.id) : chat.id;
 
   const memberCount = chat.memberCount ?? chat.participants.length;
+  const canAddMember =
+    !isDirect &&
+    (chat.ownerId === currentUid || (chat.admins ?? []).includes(currentUid));
 
   return (
     <Box
@@ -85,12 +91,19 @@ const ChatHeader: React.FC<Props> = ({
           <StatusBadge isOnline={isOnline} size="small" />
         ) : (
           <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
-            {memberCount} {isChannel ? 'obunachilar' : 'a\'zo'}
+            {memberCount} {isChannel ? 'obunachi' : 'a\'zo'}
           </Typography>
         )}
       </div>
 
       <div className="flex items-center gap-0.5">
+        {canAddMember && onAddMember && (
+          <Tooltip title={isChannel ? 'Obunachi qo\'shish' : 'A\'zo qo\'shish'}>
+            <IconButton size="small" onClick={onAddMember} sx={{ color: 'primary.main' }}>
+              <PersonAddOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
         {isDirect && (
           <>
             <Tooltip title="Ovozli qo'ng'iroq (tez kunda)">

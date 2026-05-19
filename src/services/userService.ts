@@ -1,37 +1,31 @@
 import {
   collection,
-  query,
-  where,
   getDocs,
   doc,
   updateDoc,
   serverTimestamp,
-  orderBy,
-  limit,
 } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { AppUser } from '../types';
 
 export const searchUsers = async (searchTerm: string, currentUid: string): Promise<AppUser[]> => {
-  if (!searchTerm.trim() || searchTerm.trim().length < 2) return [];
+  const term = searchTerm.trim().toLowerCase();
+  if (term.length < 1) return [];
   try {
-    const q = query(
-      collection(db, 'users'),
-      orderBy('displayName'),
-      limit(20),
-    );
-    const snap = await getDocs(q);
-    const term = searchTerm.toLowerCase();
+    // Fetch all users and filter client-side (works well for small-medium apps)
+    const snap = await getDocs(collection(db, 'users'));
     return snap.docs
       .map((d) => d.data() as AppUser)
       .filter(
         (u) =>
           u.uid !== currentUid &&
-          (u.displayName.toLowerCase().includes(term) ||
-            u.email.toLowerCase().includes(term)),
-      );
-  } catch {
+          (u.displayName?.toLowerCase().includes(term) ||
+            u.email?.toLowerCase().includes(term)),
+      )
+      .slice(0, 30);
+  } catch (err) {
+    console.error('[searchUsers]', err);
     return [];
   }
 };
@@ -39,10 +33,13 @@ export const searchUsers = async (searchTerm: string, currentUid: string): Promi
 export const getUsersByIds = async (uids: string[]): Promise<AppUser[]> => {
   if (uids.length === 0) return [];
   try {
-    const q = query(collection(db, 'users'), where('uid', 'in', uids.slice(0, 10)));
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as AppUser);
-  } catch {
+    const snap = await getDocs(collection(db, 'users'));
+    const uidSet = new Set(uids);
+    return snap.docs
+      .map((d) => d.data() as AppUser)
+      .filter((u) => uidSet.has(u.uid));
+  } catch (err) {
+    console.error('[getUsersByIds]', err);
     return [];
   }
 };

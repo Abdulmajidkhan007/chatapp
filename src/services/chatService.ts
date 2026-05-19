@@ -11,6 +11,7 @@ import {
   Unsubscribe,
   getDocs,
   arrayUnion,
+  increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Chat, AppUser, ChatParticipant } from '../types';
@@ -137,8 +138,26 @@ export const joinChannel = async (
   await updateDoc(doc(db, 'chats', chatId), {
     participants: arrayUnion(user.uid),
     [`participantDetails.${user.uid}`]: toParticipant(user),
-    memberCount: (await getDocs(query(collection(db, 'chats'), where('__name__', '==', chatId)))).docs[0]?.data()?.memberCount + 1 || 1,
+    memberCount: increment(1),
+    updatedAt: serverTimestamp(),
   });
+};
+
+export const addMembersToGroup = async (
+  chatId:     string,
+  newMembers: Pick<AppUser, 'uid' | 'displayName' | 'photoURL'>[],
+): Promise<void> => {
+  if (newMembers.length === 0) return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updates: Record<string, any> = {
+    participants: arrayUnion(...newMembers.map((u) => u.uid)),
+    memberCount:  increment(newMembers.length),
+    updatedAt:    serverTimestamp(),
+  };
+  newMembers.forEach((u) => {
+    updates[`participantDetails.${u.uid}`] = { ...toParticipant(u), role: 'member' };
+  });
+  await updateDoc(doc(db, 'chats', chatId), updates);
 };
 
 export const setTypingStatus = async (

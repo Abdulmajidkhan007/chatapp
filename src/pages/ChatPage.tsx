@@ -22,6 +22,7 @@ import MessageComposer from '../components/chat/MessageComposer';
 import NewChatDialog from '../components/chat/NewChatDialog';
 import CreateGroupDialog from '../components/chat/CreateGroupDialog';
 import CreateChannelDialog from '../components/chat/CreateChannelDialog';
+import AddMemberDialog from '../components/chat/AddMemberDialog';
 import EmptyState from '../components/ui/EmptyState';
 
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
@@ -38,9 +39,10 @@ const ChatPage: React.FC = () => {
   const chats      = useAppSelector(selectSortedChats);
   const chatsState = useAppSelector((s) => s.chats);
 
-  const [newChatOpen, setNewChatOpen]       = useState(false);
+  const [newChatOpen, setNewChatOpen]             = useState(false);
   const [groupDialogOpen, setGroupDialogOpen]     = useState(false);
   const [channelDialogOpen, setChannelDialogOpen] = useState(false);
+  const [addMemberOpen, setAddMemberOpen]         = useState(false);
 
   useChats();
 
@@ -153,6 +155,7 @@ const ChatPage: React.FC = () => {
               isOnline={isOnline(otherParticipantId)}
               onMenuClick={() => dispatch(setSidebarOpen(true))}
               showMenuButton={isMobile}
+              onAddMember={() => setAddMemberOpen(true)}
             />
             <Box className="flex-1 flex flex-col overflow-hidden">
               <MessageList
@@ -208,6 +211,13 @@ const ChatPage: React.FC = () => {
         onClose={() => setChannelDialogOpen(false)}
         onChannelCreated={handleChannelCreated}
       />
+      {activeChat && activeChat.type !== 'direct' && (
+        <AddMemberDialog
+          open={addMemberOpen}
+          onClose={() => setAddMemberOpen(false)}
+          chat={activeChat}
+        />
+      )}
     </>
   );
 };
